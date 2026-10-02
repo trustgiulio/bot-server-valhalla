@@ -31,11 +31,9 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Configurazioni per il sistema Join-to-Create (Modifica con i tuoi ID reali)
-TARGET_CATEGORY_ID = 123456789012345678  # Categoria dove creare le stanze vocali temporanee
-TRIGGER_CHANNEL_ID = (
-    123456789012345678  # Canale vocale "Crea Stanza" che fa scattare la magia
-)
+# Configurazioni per il sistema Join-to-Create (Modifica con i tuoi ID reali se necessario)
+TARGET_CATEGORY_ID = 123456789012345678  # ID della categoria per le stanze vocali temporanee
+TRIGGER_CHANNEL_ID = 123456789012345678  # ID del canale vocale "Crea Stanza"
 
 # Dizionario per tracciare le stanze temporanee: {channel_id: owner_id}
 created_vcs = {}
@@ -118,7 +116,6 @@ async def setup_server(ctx, *, prompt: str = None):
 
   try:
     # Parsing basilare del prompt separato da barre verticali (|) o sezioni
-    # Cerca sezioni come "Ruoli:", "Categorie:", "Canali:"
     roles_part = re.search(r"Ruoli:\s*([^|]+)", prompt, re.IGNORECASE)
     categories_part = re.search(r"Categorie:\s*([^|]+)", prompt, re.IGNORECASE)
     channels_part = re.search(r"Canali:\s*(.+)", prompt, re.IGNORECASE)
@@ -128,29 +125,23 @@ async def setup_server(ctx, *, prompt: str = None):
       roles_list = [r.strip() for r in roles_part.group(1).split(",")]
       for role_name in roles_list:
         if role_name:
-          # Crea il ruolo con permessi di base
           await ctx.guild.create_role(
               name=role_name, reason="Setup automatico via bot"
           )
 
-    # 2. Creazione Categorie e Canali
-    # Se l'utente ha specificato categorie
+    # 2. Creazione Categorie
     if categories_part:
       cats_list = [c.strip() for c in categories_part.group(1).split(",")]
       for cat_name in cats_list:
         if cat_name:
-          cat = await ctx.guild.create_category(
+          await ctx.guild.create_category(
               name=cat_name, reason="Setup automatico via bot"
           )
-          # Se ci sono canali associati, creiamoli dentro la prima categoria creata o suddividiamoli
-    
-    # Creazione canali generali (testuali o vocali se iniziano con emoji/🔊)
+
+    # 3. Creazione Canali
     if channels_part:
-       chans_list = [ch.strip() for ch in channels_part.group(1).split(",")]
-       # Prendi l'ultima categoria creata o usa la prima disponibile, oppure la root se non ci sono categorie
-       target_cat = (
-          ctx.guild.categories[0] if ctx.guild.categories else None
-      )
+      chans_list = [ch.strip() for ch in channels_part.group(1).split(",")]
+      target_cat = ctx.guild.categories[0] if ctx.guild.categories else None
 
       for ch_name in chans_list:
         if ch_name:
@@ -230,7 +221,6 @@ async def kick_vc(ctx, member: discord.Member):
     channel = ctx.author.voice.channel
     if channel.id in created_vcs and created_vcs[channel.id] == ctx.author.id:
       if member.voice and member.voice.channel and member.voice.channel.id == channel.id:
-        # Disconnette l'utente temporaneamente impostando il permesso connect=False per lui o muovendolo fuori
         await member.move_to(None)
         await ctx.send(
             f"👢 **{member.display_name}** è stato cacciato dalla stanza.",
@@ -241,9 +231,9 @@ async def kick_vc(ctx, member: discord.Member):
             "❌ L'utente non si trova nella tua stanza.", delete_after=5
         )
     else:
-        await ctx.send(
-            "❌ Non sei il proprietario di questa stanza.", delete_after=5
-        )
+      await ctx.send(
+          "❌ Non sei il proprietario di questa stanza.", delete_after=5
+      )
   else:
     await ctx.send("❌ Devi essere in un canale vocale.", delete_after=5)
 
@@ -275,5 +265,6 @@ if __name__ == "__main__":
   flask_thread.daemon = True
   flask_thread.start()
 
-  # Avvia il bot Discord (Inserisci qui il tuo Token
+  # Avvia il bot Discord (Inserisci qui il tuo Token)
+  TOKEN = os.environ.get("DISCORD_TOKEN", "IL_TUO_TOKEN_DISCORD_QUI")
   bot.run(TOKEN)
